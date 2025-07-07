@@ -1,21 +1,37 @@
 import discord
 from discord.ext import commands
 import os
+from flask import Flask
+from threading import Thread
 
-# 🔐 Bot Token stored securely in Render's Environment Variables
+# 🔐 Token from Render Secrets
 TOKEN = os.getenv("DISCORD_TOKEN")
 
 # ✅ Your Server (Guild) ID
 GUILD_ID = 1313265229228015646
 
-# 🧠 Enable Discord intents
+# 🌐 Flask server to keep bot alive
+app = Flask('')
+
+@app.route('/')
+def home():
+    return "✅ ML Vetting Bot is running!"
+
+def run():
+    app.run(host='0.0.0.0', port=8080)
+
+def keep_alive():
+    t = Thread(target=run)
+    t.start()
+
+# 🧠 Enable required intents
 intents = discord.Intents.default()
 intents.message_content = True
 intents.members = True
 
 bot = commands.Bot(command_prefix="!", intents=intents)
 
-# 🧠 Quiz content (8 questions, total max = 40)
+# 🧠 Quiz content
 quiz = [
     {
         "question": "What is the fundamental contradiction within capitalism?",
@@ -121,7 +137,7 @@ async def verify(ctx):
             if choice in q["options"]:
                 score += q["options"][choice][1]
             else:
-                await ctx.author.send("Invalid response. Skipping this question.")
+                await ctx.author.send("❌ Invalid response. Skipping this question.")
         except Exception:
             await ctx.author.send("⏱️ Time's up. Verification canceled.")
             return
@@ -147,4 +163,6 @@ async def verify(ctx):
     else:
         await ctx.author.send(f"❌ You scored {score}/40. That doesn’t meet the threshold for entry.\nFeel free to try again later.")
 
+# 🔁 Start the web server to stay alive via UptimeRobot
+keep_alive()
 bot.run(TOKEN)
