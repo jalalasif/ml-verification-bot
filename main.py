@@ -152,12 +152,16 @@ async def verify(ctx):
 
         try:
             member = await guild.fetch_member(ctx.author.id)
-            role = discord.utils.get(guild.roles, name="comrade")
-            if member and role:
-                await member.add_roles(role)
-                await ctx.author.send("🎉 You’ve been given the **comrade** role.")
+            comrade_role = discord.utils.get(guild.roles, name="comrade")
+            unverified_role = discord.utils.get(guild.roles, name="unverified")
+
+            if member and comrade_role:
+                await member.add_roles(comrade_role)
+                if unverified_role in member.roles:
+                    await member.remove_roles(unverified_role)
+                await ctx.author.send("🎉 You’ve been given the **comrade** role and removed from **unverified**.")
             else:
-                await ctx.author.send("⚠️ Could not find you or the role on the server.")
+                await ctx.author.send("⚠️ Could not find you or the required roles on the server.")
         except Exception as e:
             await ctx.author.send(f"❗ Error assigning your role:\n{e}")
     else:
