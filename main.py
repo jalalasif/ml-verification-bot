@@ -2,7 +2,7 @@ import discord
 from discord.ext import commands
 import os
 
-# 🔐 Bot Token stored in Render environment
+# 🔐 Bot Token stored securely in Render's Environment Variables
 TOKEN = os.getenv("DISCORD_TOKEN")
 
 # ✅ Your Server (Guild) ID
@@ -15,7 +15,7 @@ intents.members = True
 
 bot = commands.Bot(command_prefix="!", intents=intents)
 
-# 📋 Original Quiz content (8 questions, 40 points max)
+# 🧠 Quiz content (8 questions, total max = 40)
 quiz = [
     {
         "question": "What is the fundamental contradiction within capitalism?",
@@ -99,7 +99,7 @@ async def on_ready():
 async def verify(ctx):
     await ctx.message.delete()
     try:
-        await ctx.author.send("Welcome to the verification quiz. You’ll be asked 8 questions. Each answer is worth up to 5 points. You need at least 30/40 to pass. Respond to each question with A, B, C, or D.")
+        await ctx.author.send("📜 Welcome to the verification quiz. You'll get 8 questions. Reply with A, B, C, or D.\nYou need at least 30/40 to join. Let’s begin!")
     except discord.Forbidden:
         await ctx.send(f"{ctx.author.mention}, please enable DMs from server members to complete verification.")
         return
@@ -127,7 +127,7 @@ async def verify(ctx):
             return
 
     if score >= 30:
-        await ctx.author.send(f"✅ You passed with {score}/40. Welcome, comrade.")
+        await ctx.author.send(f"✅ You passed with {score}/40. Welcome, comrade!")
 
         guild = bot.get_guild(GUILD_ID)
         if not guild:
@@ -143,8 +143,8 @@ async def verify(ctx):
             else:
                 await ctx.author.send("⚠️ Could not find you or the role on the server.")
         except Exception as e:
-            await ctx.author.send(f"❗ Something went wrong assigning your role:\n{e}")
+            await ctx.author.send(f"❗ Error assigning your role:\n{e}")
     else:
-        await ctx.author.send(f"❌ You scored {score}/40. This doesn't meet the threshold for entry. You're welcome to study and try again anytime!")
+        await ctx.author.send(f"❌ You scored {score}/40. That doesn’t meet the threshold for entry.\nFeel free to try again later.")
 
 bot.run(TOKEN)
