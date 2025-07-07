@@ -10,6 +10,9 @@ TOKEN = os.getenv("DISCORD_TOKEN")
 # ✅ Your Server (Guild) ID
 GUILD_ID = 1313265229228015646
 
+# 💬 Name of the welcome channel to post alerts in
+WELCOME_CHANNEL_NAME = "welcome"
+
 # 🌐 Flask server to keep bot alive
 app = Flask('')
 
@@ -31,15 +34,15 @@ intents.members = True
 
 bot = commands.Bot(command_prefix="!", intents=intents)
 
-# 🧠 Quiz content
+# 🧠 Refined quiz content
 quiz = [
     {
-        "question": "What is the fundamental contradiction within capitalism?",
+        "question": "What is the core contradiction that ultimately destabilizes capitalism from within?",
         "options": {
-            "A": ("The tension between rich and poor due to unfair policies", 3),
-            "B": ("The contradiction between the socialized nature of production and private appropriation of profit", 5),
-            "C": ("The problem of market inefficiencies and poor regulation", 0),
-            "D": ("The individual’s struggle to find meaning in a consumer society", 0)
+            "A": ("Persistent inequality between rich and poor resulting from flawed policies", 3),
+            "B": ("The conflict between collective labor that creates value and the private ownership that extracts it", 5),
+            "C": ("Excess consumerism leading to ecological and psychological crises", 0),
+            "D": ("The lack of sufficient regulations to stabilize market competition", 0)
         }
     },
     {
@@ -61,48 +64,48 @@ quiz = [
         }
     },
     {
-        "question": "What is the purpose of the state in class society?",
+        "question": "What is the state's function in a society structured by class antagonisms?",
         "options": {
-            "A": ("To enforce laws and maintain social order", 0),
-            "B": ("To provide services and protect citizens", 3),
-            "C": ("To mediate class conflicts fairly", 0),
-            "D": ("To serve as an instrument of class rule, upholding the interests of the ruling class", 5)
+            "A": ("A neutral body that arbitrates between competing interests to maintain harmony", 0),
+            "B": ("A reflection of the dominant culture's moral consensus", 0),
+            "C": ("A tool that ensures social services and legal equality across classes", 3),
+            "D": ("A coercive apparatus used to maintain the dominance of the ruling class", 5)
         }
     },
     {
-        "question": "What defines class in Marxist theory?",
+        "question": "According to Marxist analysis, how are social classes primarily determined?",
         "options": {
-            "A": ("Cultural background and education", 0),
-            "B": ("Relative income and social status", 3),
-            "C": ("Relationship to the means of production", 5),
-            "D": ("Level of political engagement", 0)
+            "A": ("Levels of education, upbringing, and cultural capital", 0),
+            "B": ("Wealth brackets and perceived social mobility", 3),
+            "C": ("One’s position in relation to control over productive property", 5),
+            "D": ("Degree of participation in democratic processes", 0)
         }
     },
     {
-        "question": "Which of these is a necessary condition for the dictatorship of the proletariat?",
+        "question": "What precondition is necessary to secure and maintain proletarian political power?",
         "options": {
-            "A": ("Free press and multiparty competition", 0),
-            "B": ("Workers seizing state power and suppressing counterrevolution", 5),
-            "C": ("Decentralized communes and nonviolence", 3),
-            "D": ("Gradual reform through parliamentary means", 0)
+            "A": ("A robust and independent press to expose abuses of power", 0),
+            "B": ("Mass mobilization of workers to seize the state and suppress counter-revolution", 5),
+            "C": ("Consensus-building through participatory local governance", 3),
+            "D": ("Electoral competition that keeps leadership accountable", 0)
         }
     },
     {
-        "question": "What best describes imperialism today?",
+        "question": "How should we best understand imperialism in our current global moment?",
         "options": {
-            "A": ("A relic of the colonial past with little modern relevance", 0),
-            "B": ("Aggressive military expansionism by rogue states", 3),
-            "C": ("The highest stage of capitalism, marked by monopolies and export of capital", 5),
-            "D": ("A geopolitical competition between great powers", 3)
+            "A": ("Primarily as a moral failure of powerful nations to respect sovereignty", 0),
+            "B": ("The extension of military dominance by undemocratic regimes", 3),
+            "C": ("The global stage of monopoly capitalism, exporting capital and securing superprofits abroad", 5),
+            "D": ("Strategic rivalries between blocs that vie for regional influence", 3)
         }
     },
     {
-        "question": "What role should the working class in imperialist countries play?",
+        "question": "What role ought workers in core imperialist nations play in global class struggle?",
         "options": {
-            "A": ("Demand better wages and conditions through unions", 3),
-            "B": ("Focus on domestic justice before international issues", 0),
-            "C": ("Stand in solidarity with the global proletariat and actively oppose their own ruling class’s imperialism", 5),
-            "D": ("Support ethical foreign policy and fair trade initiatives", 0)
+            "A": ("Organize at home while encouraging responsible global policy", 0),
+            "B": ("Prioritize domestic reform efforts before worrying about the international sphere", 0),
+            "C": ("Reject their own ruling class’s imperialism and unite with workers of the global South", 5),
+            "D": ("Push for fair trade and diplomacy to reduce exploitation abroad", 3)
         }
     }
 ]
@@ -154,12 +157,15 @@ async def verify(ctx):
             member = await guild.fetch_member(ctx.author.id)
             comrade_role = discord.utils.get(guild.roles, name="comrade")
             unverified_role = discord.utils.get(guild.roles, name="unverified")
+            welcome_channel = discord.utils.get(guild.text_channels, name=WELCOME_CHANNEL_NAME)
 
             if member and comrade_role:
                 await member.add_roles(comrade_role)
                 if unverified_role in member.roles:
                     await member.remove_roles(unverified_role)
                 await ctx.author.send("🎉 You’ve been given the **comrade** role and removed from **unverified**.")
+                if welcome_channel:
+                    await welcome_channel.send(f"🎉 Welcome {member.mention}! Verified and ready to roll.")
             else:
                 await ctx.author.send("⚠️ Could not find you or the required roles on the server.")
         except Exception as e:
