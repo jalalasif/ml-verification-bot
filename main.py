@@ -3,22 +3,27 @@ from discord.ext import commands
 import os
 from flask import Flask
 from threading import Thread
+import random
 
-# 🔐 Token from Render Secrets
+# Secret token from your cozy cloud kingdom
 TOKEN = os.getenv("DISCORD_TOKEN")
 
-# ✅ Your Server (Guild) ID
+# Your magical guild realm
 GUILD_ID = 1313265229228015646
 
-# 💬 Name of the welcome channel to post alerts in
+# The soft and sparkly channel where new folks are greeted
 WELCOME_CHANNEL_NAME = "welcome"
 
-# 🌐 Flask server to keep bot alive
+# The little nook where answer logs are stored
+ANSWER_LOG_CHANNEL = "user-answers"
+ANSWER_LOG_CATEGORY = "admin & rules"
+
+# A tiny heartbeat to keep the bot's spirit alive
 app = Flask('')
 
 @app.route('/')
 def home():
-    return "✅ ML Vetting Bot is running!"
+    return "ML Vetting Bot is humming happily and very much alive"
 
 def run():
     app.run(host='0.0.0.0', port=8080)
@@ -27,14 +32,14 @@ def keep_alive():
     t = Thread(target=run)
     t.start()
 
-# 🧠 Enable required intents
+# Magical permissions so the bot can read, write, love, and sparkle
 intents = discord.Intents.default()
 intents.message_content = True
 intents.members = True
 
 bot = commands.Bot(command_prefix="!", intents=intents)
 
-# 🧠 Refined quiz content
+# Quiz questions full of theory and truth
 quiz = [
     {
         "question": "What is the core contradiction that ultimately destabilizes capitalism from within?",
@@ -110,25 +115,36 @@ quiz = [
     }
 ]
 
+welcome_messages = [
+    "Say hello to our newest comrade! You passed the vibe and theory check. Welcome aboard.",
+    "Another beautiful brain just joined us. Let’s give a big warm welcome to our comrade.",
+    "Revolutionary spirit detected. Welcome to the collective, comrade.",
+    "A fresh comrade has arrived! Give them some love and solidarity.",
+    "They studied, they slayed, and now they’re here. Welcome to the revolution."
+]
+
 @bot.event
 async def on_ready():
-    print(f"✅ Logged in as {bot.user.name}")
+    print(f"Logged in as {bot.user.name} and floating happily")
 
 @bot.command(name="verifyme")
 async def verify(ctx):
     await ctx.message.delete()
     try:
-        await ctx.author.send("📜 Welcome to the verification quiz. You'll get 8 questions. Reply with A, B, C, or D.\nYou need at least 30/40 to join. Let’s begin!")
+        await ctx.author.send("Hi there! You’re about to start a little quiz that helps us keep this space thoughtful and safe. Eight questions. Be honest, take your time, and just answer A, B, C, or D. You’ll need 30 points to pass. You got this.")
     except discord.Forbidden:
-        await ctx.send(f"{ctx.author.mention}, please enable DMs from server members to complete verification.")
+        await ctx.send(f"{ctx.author.mention}, please turn on your DMs so I can float into your inbox")
         return
 
     score = 0
+    answers = []
+    shuffled_quiz = quiz.copy()
+    random.shuffle(shuffled_quiz)
 
     def check(m):
         return m.author == ctx.author and isinstance(m.channel, discord.DMChannel)
 
-    for q in quiz:
+    for idx, q in enumerate(shuffled_quiz, start=1):
         q_text = f"\n**{q['question']}**\n"
         for letter, (text, _) in q["options"].items():
             q_text += f"{letter}. {text}\n"
@@ -139,40 +155,52 @@ async def verify(ctx):
             choice = msg.content.upper().strip()
             if choice in q["options"]:
                 score += q["options"][choice][1]
+                answers.append(f"{idx}. {choice}")
             else:
-                await ctx.author.send("❌ Invalid response. Skipping this question.")
+                await ctx.author.send("That wasn’t a valid answer sweetie, but no worries, we’re skipping it")
+                answers.append(f"{idx}. Invalid")
         except Exception:
-            await ctx.author.send("⏱️ Time's up. Verification canceled.")
+            await ctx.author.send("Hmm, looks like we ran out of time. That’s okay! Feel free to try again later")
             return
 
-    if score >= 30:
-        await ctx.author.send(f"✅ You passed with {score}/40. Welcome, comrade!")
+    summary = "\n".join(answers)
+    total_summary = f"User: {ctx.author} ({ctx.author.id})\nAnswers:\n{summary}\nScore: {score}/40"
 
-        guild = bot.get_guild(GUILD_ID)
-        if not guild:
-            await ctx.author.send("⚠️ Bot couldn't access the server to assign your role.")
-            return
+    guild = bot.get_guild(GUILD_ID)
+    if not guild:
+        await ctx.author.send("Hmm, I couldn’t reach the server. Something’s off")
+        return
 
-        try:
-            member = await guild.fetch_member(ctx.author.id)
-            comrade_role = discord.utils.get(guild.roles, name="comrade")
-            unverified_role = discord.utils.get(guild.roles, name="unverified")
-            welcome_channel = discord.utils.get(guild.text_channels, name=WELCOME_CHANNEL_NAME)
+    try:
+        member = await guild.fetch_member(ctx.author.id)
+        comrade_role = discord.utils.get(guild.roles, name="comrade")
+        unverified_role = discord.utils.get(guild.roles, name="unverified")
+        welcome_channel = discord.utils.get(guild.text_channels, name=WELCOME_CHANNEL_NAME)
 
+        category = discord.utils.get(guild.categories, name=ANSWER_LOG_CATEGORY)
+        log_channel = None
+        if category:
+            log_channel = discord.utils.get(category.channels, name=ANSWER_LOG_CHANNEL)
+
+        if log_channel:
+            await log_channel.send(total_summary)
+
+        if score >= 30:
+            await ctx.author.send(f"You did it! Your score was {score}/40 and that means you passed! We’re so happy to have you here")
             if member and comrade_role:
                 await member.add_roles(comrade_role)
                 if unverified_role in member.roles:
                     await member.remove_roles(unverified_role)
-                await ctx.author.send("🎉 You’ve been given the **comrade** role and removed from **unverified**.")
+                await ctx.author.send("All done! You’ve got your comrade role now. Feel free to look around and get cozy")
                 if welcome_channel:
-                    await welcome_channel.send(f"🎉 Welcome {member.mention}! Verified and ready to roll.")
+                    welcome_text = random.choice(welcome_messages)
+                    await welcome_channel.send(f"{welcome_text} {member.mention}")
             else:
-                await ctx.author.send("⚠️ Could not find you or the required roles on the server.")
-        except Exception as e:
-            await ctx.author.send(f"❗ Error assigning your role:\n{e}")
-    else:
-        await ctx.author.send(f"❌ You scored {score}/40. That doesn’t meet the threshold for entry.\nFeel free to try again later.")
+                await ctx.author.send("Something glitched when assigning your role. Let someone know and we’ll fix it")
+        else:
+            await ctx.author.send(f"Hey, your score was {score}/40 which doesn’t meet the entry mark. That’s okay though — this quiz is meant to challenge. You’re totally welcome to try again later when you feel ready")
+    except Exception as e:
+        await ctx.author.send(f"Oopsie, something broke during the final steps:\n{e}")
 
-# 🔁 Start the web server to stay alive via UptimeRobot
 keep_alive()
 bot.run(TOKEN)
