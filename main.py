@@ -5,20 +5,16 @@ from flask import Flask
 from threading import Thread
 import random
 
-# Secret token from your cozy cloud kingdom
+# Secret token for bot authentication
 TOKEN = os.getenv("DISCORD_TOKEN")
 
-# Your magical guild realm
+# Server and channel configuration
 GUILD_ID = 1313265229228015646
-
-# The soft and sparkly channel where new folks are greeted
 WELCOME_CHANNEL_NAME = "welcome"
-
-# The little nook where answer logs are stored
 ANSWER_LOG_CHANNEL = "user-answers"
 ANSWER_LOG_CATEGORY = "admin & rules"
 
-# A tiny heartbeat to keep the bot's spirit alive
+# Flask app to keep the bot alive
 app = Flask('')
 
 @app.route('/')
@@ -32,14 +28,14 @@ def keep_alive():
     t = Thread(target=run)
     t.start()
 
-# Magical permissions so the bot can read, write, love, and sparkle
+# Discord bot setup with intents
 intents = discord.Intents.default()
 intents.message_content = True
 intents.members = True
 
 bot = commands.Bot(command_prefix="!", intents=intents)
 
-# Quiz questions full of theory and truth
+# Quiz content
 quiz = [
     {
         "question": "What is the core contradiction that ultimately destabilizes capitalism from within?",
@@ -115,6 +111,7 @@ quiz = [
     }
 ]
 
+# Welcome messages pool
 welcome_messages = [
     "Say hello to our newest comrade! You passed the vibe and theory check. Welcome aboard.",
     "Another beautiful brain just joined us. Let’s give a big warm welcome to our comrade.",
@@ -153,12 +150,23 @@ async def verify(ctx):
         try:
             msg = await bot.wait_for('message', timeout=120.0, check=check)
             choice = msg.content.upper().strip()
+
+            correct_letter = max(q["options"], key=lambda k: q["options"][k][1])
+            correct_score = q["options"][correct_letter][1]
+
             if choice in q["options"]:
-                score += q["options"][choice][1]
-                answers.append(f"{idx}. {choice}")
+                user_score = q["options"][choice][1]
+                score += user_score
+
+                if user_score == correct_score:
+                    answers.append(f"{idx}. {choice} ✓")
+                else:
+                    correct_text = f"{correct_letter} ({q['options'][correct_letter][0]})"
+                    answers.append(f"{idx}. {choice} ✗ — correct answer: {correct_text}")
             else:
                 await ctx.author.send("That wasn’t a valid answer sweetie, but no worries, we’re skipping it")
-                answers.append(f"{idx}. Invalid")
+                correct_text = f"{correct_letter} ({q['options'][correct_letter][0]})"
+                answers.append(f"{idx}. Invalid ✗ — correct answer: {correct_text}")
         except Exception:
             await ctx.author.send("Hmm, looks like we ran out of time. That’s okay! Feel free to try again later")
             return
