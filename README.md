@@ -1,100 +1,91 @@
-# ml-verification-bot
-Discord Verification bot.
+# Discord Verification Bot
 
-# Marxist-Leninist Discord Verification Bot
+This is a Python-based Discord bot designed to automate user verification through a custom quiz system. It ensures that new members meet a specific level of familiarity with server expectations before being granted full access.
 
-This is a Discord bot that automates political vetting for new users joining a Marxist-Leninist-oriented server. Users are required to complete a quiz via direct message, answering 8 multiple-choice questions. The bot scores their responses, and if they pass the threshold (30/40), they are automatically assigned the **comrade** role on the server.
+## Features
 
-This bot is designed to deter liberal, reactionary, or fascist infiltration by filtering participants through questions rooted in Marxist-Leninist theory.
+- **DM-based quiz delivery**  
+  Users initiate the quiz by typing `!verifyme`. The bot sends a private 8-question multiple-choice quiz directly to their DMs.
 
----
+- **Shuffled question order**  
+  Each session presents the quiz in a randomized order to reduce predictability.
 
-## 🔧 Features
+- **Automated scoring**  
+  Each response is scored instantly. A total of 40 points is possible, with a passing score set at 30.
 
-- Sends users an automated DM when they run `!verifyme`
-- Asks 8 political-theoretical questions (max 5 points per question)
-- Accepts responses in A/B/C/D format (case-insensitive)
-- Tallies score and grants access if score ≥ 30
-- Automatically assigns the `comrade` role to verified users
-- Provides feedback on score and whether they passed or failed
-- Built in Python using `discord.py`
+- **Role assignment**  
+  Upon passing, the bot assigns a designated role (e.g., `comrade`) and removes the `unverified` role automatically.
 
----
+- **Personalized welcome**  
+  One of five randomized welcome messages is posted in the `#welcome` channel when someone verifies successfully.
 
-## 💡 How It Works
+- **Answer logging**  
+  All user responses and scores are sent to a private `#user-answers` channel within the `admin & rules` category for moderation and transparency.
 
-1. A new user joins the server and types `!verifyme` in the `#verification` channel.
-2. The bot DMs them a series of 8 questions, one at a time.
-3. Each answer is scored (some answers award fewer points; reactionary ones may score zero or negative).
-4. If the user scores at least 30/40, they receive the `comrade` role automatically.
-5. If not, they are encouraged to study and try again.
+- **Graceful failure handling**  
+  If a user has DMs disabled or the session times out, the bot notifies them with friendly and helpful messages.
 
-This ensures that users entering the space either already align with Marxist-Leninist principles or are sincerely open to learning them.
+## Hosting & Uptime
 
----
+The bot runs as an **active web service on [Render](https://render.com)** and is kept alive by periodic HTTP pings from [Uptime Robot](https://uptimerobot.com). A lightweight Flask app is used to serve a basic endpoint that UptimeRobot can monitor, preventing the bot from going idle due to inactivity.
 
-## 🚀 Deployment (Render)
+## Setup
 
-This bot is designed to be hosted 24/7 on [Render.com](https://render.com) using a **Background Worker** process.
-
-### 🔄 Setup Steps:
-
-1. **Fork or clone this repo**, or upload it to your own GitHub account.
-2. Create a **new Background Worker** on Render.
-3. Connect your GitHub and select this repository.
-4. In the Render setup:
-   - **Runtime**: Python 3.11+
-   - **Build Command**:  
-     ```bash
-     pip install -r requirements.txt
-     ```
-   - **Start Command**:  
-     ```bash
-     python main.py
-     ```
-5. Under **Environment Variables**, add:
-   - `DISCORD_TOKEN` = *your bot token here*
-6. Click **Deploy**. Render will keep your bot alive automatically!
-
----
-
-## 📜 Requirements
-
-Be sure your `requirements.txt` contains the following:
-
-You can generate this yourself with:
+### 1. Clone the repository
 
 ```bash
-pip freeze > requirements.txt
+git clone https://github.com/yourusername/discord-verification-bot.git
+cd discord-verification-bot
+```
 
----
+### 2. Install dependencies
 
+```bash
+pip install -r requirements.txt
+```
 
-🛠️ Customization
-	•	You can adjust the quiz content in main.py by editing the quiz = [...] block.
-	•	You can change the required passing score or role name as needed.
-	•	To add more questions or categories (e.g. environmentalism, anti-colonialism), just add to the list.
+### 3. Environment variables
 
-⸻
+Create a `.env` file (or configure your variables in Render) with:
 
-🤝 Contributing
+```
+DISCORD_TOKEN=your-bot-token-here
+```
 
-Feel free to fork and modify this bot for other political purposes, including:
-	•	Vetting for anti-imperialist groups
-	•	Historical education
-	•	Mutual aid vetting
-	•	Reading group filtering
+### 4. Deploy to Render
 
-Pull requests welcome!
+- Create a **Web Service** in your Render dashboard.
+- Use `python your_script.py` as the start command.
+- Set `DISCORD_TOKEN` in your Render environment variables.
+- Render will assign a public URL that UptimeRobot can ping.
 
-⸻
+### 5. Set up Uptime Robot
 
-⚠️ Caution
+- Go to [uptimerobot.com](https://uptimerobot.com)
+- Add a new HTTP(s) monitor
+- Paste your Render URL (e.g. `https://your-bot.onrender.com`)
+- Set check interval to every 5 minutes
 
-This bot is intended to provide light vetting based on political alignment. It should not be used to police or harass users, nor to gatekeep in bad faith. It is meant to create a safer space for principled organizing.
+## Server Configuration
 
-⸻
+To ensure the bot functions as expected, make sure your server has:
 
-📢 License
+- A role named `comrade`
+- A role named `unverified`
+- A text channel named `welcome`
+- A text channel named `user-answers` nested under a category named `admin & rules`
 
-This project is open-source and free to use under the MIT License.
+These names are matched exactly, so double-check spelling and capitalization.
+
+## File Structure
+
+```
+discord-verification-bot/
+├── main.py               # Main bot script with quiz logic
+├── requirements.txt      # Python dependencies
+└── README.md             # Project overview and instructions
+```
+
+## License
+
+This project is licensed under the MIT License. See `LICENSE` for details.
