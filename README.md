@@ -34,7 +34,7 @@ The bot runs as an **active web service on [Render](https://render.com)** and is
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/yourusername/discord-verification-bot.git
+git clone https://github.com/jalalasif/discord-verification-bot.git
 cd discord-verification-bot
 ```
 
