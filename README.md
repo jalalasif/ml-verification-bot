@@ -1,33 +1,39 @@
 # Discord Verification Bot
 
-This is a Python-based Discord bot designed to automate user verification through a custom quiz system. It ensures that new members meet a specific level of familiarity with server expectations before being granted full access.
+This is a modular Python-based Discord bot built to automate user verification through a lightweight quiz system. It ensures that new members meet a baseline level of understanding or alignment with community values before being granted access to the rest of the server.
 
 ## Features
 
-- **DM-based quiz delivery**  
-  Users initiate the quiz by typing `!verifyme`. The bot sends a private 8-question multiple-choice quiz directly to their DMs.
+- **Private DM-based quiz delivery**  
+  When users type `!verifyme` in a designated channel, the bot initiates a private 8-question multiple-choice quiz.
 
-- **Shuffled question order**  
-  Each session presents the quiz in a randomized order to reduce predictability.
+- **Randomized questions and answers**  
+  Both the order of questions and the order of their answer choices are shuffled each time, ensuring each attempt is unique.
 
-- **Automated scoring**  
-  Each response is scored instantly. A total of 40 points is possible, with a passing score set at 30.
+- **Automated scoring with explanation**  
+  Responses are scored in real time, with incorrect answers followed by a message showing the correct response and question. Passing score is 30 out of 40.
 
-- **Role assignment**  
-  Upon passing, the bot assigns a designated role (e.g., `comrade`) and removes the `unverified` role automatically.
+- **Attempt tracking and retry limit**  
+  Users are limited to four attempts per 24 hours. Any additional attempts are gracefully denied with a friendly message.
 
-- **Personalized welcome**  
-  One of five randomized welcome messages is posted in the `#welcome` channel when someone verifies successfully.
+- **Channel-restricted activation**  
+  The quiz can only be launched from specific channels (e.g., `start-here-for-verification` or `polls-and-tests`) to maintain order and prevent misuse.
 
-- **Answer logging**  
-  All user responses and scores are sent to a private `#user-answers` channel within the `admin & rules` category for moderation and transparency.
+- **Role assignment on success**  
+  Successful users are automatically assigned a pre-defined role (e.g., `comrade`) and have the `unverified` role removed.
 
-- **Graceful failure handling**  
-  If a user has DMs disabled or the session times out, the bot notifies them with friendly and helpful messages.
+- **Personalized welcome messages**  
+  Upon passing, users are welcomed in a public `#welcome` channel using one of several randomly selected messages stored in a JSON file.
+
+- **Answer logging for moderators**  
+  All quiz answers, scores, and pass/fail status are posted to a private logging channel (`#user-answers`) nested under a category named `admin & rules`.
+
+- **Friendly UX with timeout handling**  
+  If a user does not respond within the time limit, the bot exits the quiz session politely and encourages them to try again later.
 
 ## Hosting & Uptime
 
-The bot runs as an **active web service on [Render](https://render.com)** and is kept alive by periodic HTTP pings from [Uptime Robot](https://uptimerobot.com). A lightweight Flask app is used to serve a basic endpoint that UptimeRobot can monitor, preventing the bot from going idle due to inactivity.
+The bot is deployed as an **active Web Service on [Render](https://render.com)** and kept alive using regular pings from [Uptime Robot](https://uptimerobot.com). A small Flask server is used to expose a status endpoint so Render does not suspend the instance due to inactivity.
 
 ## Setup
 
@@ -46,7 +52,7 @@ pip install -r requirements.txt
 
 ### 3. Environment variables
 
-Create a `.env` file (or configure your variables in Render) with:
+Set the following environment variable (either in a `.env` file or your hosting dashboard):
 
 ```
 DISCORD_TOKEN=your-bot-token-here
@@ -54,36 +60,42 @@ DISCORD_TOKEN=your-bot-token-here
 
 ### 4. Deploy to Render
 
-- Create a **Web Service** in your Render dashboard.
-- Use `python your_script.py` as the start command.
-- Set `DISCORD_TOKEN` in your Render environment variables.
-- Render will assign a public URL that UptimeRobot can ping.
+- Create a **Web Service** on Render
+- Use `python main.py` as your start command
+- Set `DISCORD_TOKEN` in your Render environment variables
+- Render will provide a public URL for your Flask endpoint
 
 ### 5. Set up Uptime Robot
 
-- Go to [uptimerobot.com](https://uptimerobot.com)
-- Add a new HTTP(s) monitor
-- Paste your Render URL (e.g. `https://your-bot.onrender.com`)
-- Set check interval to every 5 minutes
+- Go to [https://uptimerobot.com](https://uptimerobot.com)
+- Create a new monitor (HTTP/S type)
+- Enter your Render URL (e.g., `https://your-bot.onrender.com`)
+- Set the interval to 5 minutes
 
 ## Server Configuration
 
-To ensure the bot functions as expected, make sure your server has:
+Make sure your server includes the following:
 
-- A role named `comrade`
+- A role named `comrade` (or your preferred post-verification role)
 - A role named `unverified`
 - A text channel named `welcome`
-- A text channel named `user-answers` nested under a category named `admin & rules`
+- A text channel named `user-answers` under a category called `admin & rules`
+- Verification command allowed **only** in `start-here-for-verification` or `polls-and-tests`
 
-These names are matched exactly, so double-check spelling and capitalization.
+These names are matched exactly, so check spelling and capitalization.
 
 ## File Structure
 
 ```
 discord-verification-bot/
-├── main.py               # Main bot script with quiz logic
-├── requirements.txt      # Python dependencies
-└── README.md             # Project overview and instructions
+├── main.py             # Starts the bot and handles startup
+├── handlers.py         # Quiz and role management logic
+├── quiz.py             # Loads and shuffles quiz data
+├── utils.py            # Helper functions for retry tracking and messages
+├── quiz.json           # Full quiz content
+├── messages.json       # Welcome messages
+├── requirements.txt    # Python dependencies
+└── README.md           # This file
 ```
 
 ## License
