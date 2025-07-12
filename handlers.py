@@ -84,13 +84,16 @@ async def handle_verification(ctx, bot, GUILD_ID, WELCOME_CHANNEL_NAME, ANSWER_L
                 await member.remove_roles(unverified_role)
             if welcome_channel:
                 await welcome_channel.send(f"{random.choice(WELCOME_MESSAGES)} {member.mention}")
-
     else:
-        await ctx.author.send(f"Uh oh, sorry but you scored {score}/40. Sadly, that's not quite enough to align with our ideological positions. But don’t worry — you can try again! Second time's the charm! Or third? Maybe fouth....?")
+        await ctx.author.send(f"Uh oh, sorry but you scored {score}/40. Sadly, that's not quite enough to align with our ideological positions. But don’t worry — you can try again! Second time's the charm! Or third? Maybe fourth....?")
 
     # Send answer breakdown if user already had comrade role or passed successfully
     if has_comrade or score >= 30:
         try:
-            await ctx.author.send(f"📊 You did it! I'd give you a high five, but I'm just a bot lol! Anyway, here's your quiz breakdown:\n\n{summary}")
+            if score >= 30:
+                breakdown_intro = "📊 You did it! I'd give you a high five, but I'm just a bot lol! Anyway, here's your quiz breakdown:"
+            else:
+                breakdown_intro = "📊 Thanks for giving it a shot! Since you're already verified, here's your quiz breakdown:"
+            await ctx.author.send(f"{breakdown_intro}\n\n{summary}")
         except discord.Forbidden:
             print(f"Could not send breakdown DM to {ctx.author.name}")
