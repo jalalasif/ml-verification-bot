@@ -32,9 +32,10 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 
 @bot.event
 async def on_ready():
-    print(f"Logged in as {bot.user.name}")
+    print(f"✅ Logged in as {bot.user.name}")
 
 @bot.command(name="verifyme")
+@commands.cooldown(rate=1, per=5.0, type=commands.BucketType.user)
 async def verifyme(ctx):
     await handle_verification(ctx, bot, GUILD_ID, WELCOME_CHANNEL_NAME, ANSWER_LOG_CATEGORY, ANSWER_LOG_CHANNEL)
 

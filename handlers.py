@@ -9,18 +9,31 @@ ALLOWED_CHANNELS = {"start-here-for-verification", "polls-and-tests", "unverifie
 
 async def handle_verification(ctx, bot, GUILD_ID, WELCOME_CHANNEL_NAME, ANSWER_LOG_CATEGORY, ANSWER_LOG_CHANNEL):
     if ctx.channel.name not in ALLOWED_CHANNELS:
-        await ctx.send(f"{ctx.author.mention} You can only use this command in the designated verification channels (#polls-and-tests & #start-here-for-verification)!")
+        await ctx.reply(
+            f"{ctx.author.mention} You can only use this command in the designated verification channels (#polls-and-tests & #start-here-for-verification)!",
+            mention_author=False
+        )
         return
 
     if not can_attempt(ctx.author.id):
-        await ctx.send(f"{ctx.author.mention} You've reached the max number of quiz attempts today. Please try again tomorrow!")
+        await ctx.reply(
+            f"{ctx.author.mention} You've reached the max number of quiz attempts today. Please try again tomorrow!",
+            mention_author=False
+        )
         return
 
-    await ctx.message.delete()
+    try:
+        await ctx.message.delete()
+    except discord.Forbidden:
+        pass  # If bot can't delete, just skip
+
     try:
         await ctx.author.send("Hello there, my cutesy comrade! You're about to begin a short quiz for a vibe check! You'll need 30/40 to pass. Answer with A, B, C, or D. You’ve got this - and we're rooting for you!")
     except discord.Forbidden:
-        await ctx.send(f"{ctx.author.mention}, please enable DMs so I can send you the quiz.")
+        await ctx.reply(
+            f"{ctx.author.mention}, please enable DMs so I can send you the quiz.",
+            mention_author=False
+        )
         return
 
     score = 0
@@ -34,7 +47,10 @@ async def handle_verification(ctx, bot, GUILD_ID, WELCOME_CHANNEL_NAME, ANSWER_L
         text = f"\n**{q['question']}**\n"
         for letter, (desc, _) in q["options"].items():
             text += f"{letter}. {desc}\n"
-        await ctx.author.send(text)
+        try:
+            await ctx.author.send(text)
+        except discord.Forbidden:
+            return
 
         try:
             msg = await bot.wait_for("message", timeout=240.0, check=check)
@@ -73,7 +89,6 @@ async def handle_verification(ctx, bot, GUILD_ID, WELCOME_CHANNEL_NAME, ANSWER_L
     if log_channel:
         await log_channel.send(total_summary)
 
-    # Check if user already has comrade role
     has_comrade = comrade_role in member.roles if comrade_role else False
 
     if score >= 30:
@@ -87,13 +102,9 @@ async def handle_verification(ctx, bot, GUILD_ID, WELCOME_CHANNEL_NAME, ANSWER_L
     else:
         await ctx.author.send(f"Uh oh, sorry but you scored {score}/40. Sadly, that's not quite enough to align with our ideological positions. But don’t worry — you can try again! Second time's the charm! Or third? Maybe fourth....?")
 
-    # Send answer breakdown if user already had comrade role or passed successfully
     if has_comrade or score >= 30:
         try:
-            if score >= 30:
-                breakdown_intro = "📊 You did it! I'd give you a high five, but I'm just a bot lol! Anyway, here's your quiz breakdown:"
-            else:
-                breakdown_intro = "📊 Thanks for giving it a shot! Since you're already verified, here's your quiz breakdown:"
-            await ctx.author.send(f"{breakdown_intro}\n\n{summary}")
+            intro = "📊 You did it! I'd give you a high five, but I'm just a bot lol! Anyway, here's your quiz breakdown:" if score >= 30 else "📊 Thanks for giving it a shot! Since you're already verified, here's your quiz breakdown:"
+            await ctx.author.send(f"{intro}\n\n{summary}")
         except discord.Forbidden:
             print(f"Could not send breakdown DM to {ctx.author.name}")
