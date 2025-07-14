@@ -5,7 +5,7 @@ from utils import load_welcome_messages, can_attempt, record_attempt
 
 QUIZ = load_quiz()
 WELCOME_MESSAGES = load_welcome_messages()
-ALLOWED_CHANNELS = {"start-here-for-verification", "polls-and-tests"}
+ALLOWED_CHANNELS = {"start-here-for-verification", "polls-and-tests", "unverified"}
 
 async def handle_verification(ctx, bot, GUILD_ID, WELCOME_CHANNEL_NAME, ANSWER_LOG_CATEGORY, ANSWER_LOG_CHANNEL):
     if ctx.channel.name not in ALLOWED_CHANNELS:
