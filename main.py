@@ -39,4 +39,5 @@ async def verifyme(ctx):
     await handle_verification(ctx, bot, GUILD_ID, WELCOME_CHANNEL_NAME, ANSWER_LOG_CATEGORY, ANSWER_LOG_CHANNEL)
 
 keep_alive()
+print(f"Loaded token: {'yes' if TOKEN else 'no'}")
 bot.run(TOKEN)
