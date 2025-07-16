@@ -112,12 +112,15 @@ async def handle_verification(ctx, bot, guild_id, welcome_channel_name, answer_l
     record_attempt(member.id)
 
     if score >= 30:
-        role = discord.utils.get(member.guild.roles, name="comrade")
-        if role:
-            await member.add_roles(role)
-            await dm_channel.send(f"Yippee! You passed with {score}/40. Welcome to our little corner of summer and sunshine!")
+        comrade_role = discord.utils.get(member.guild.roles, name="comrade")
+        unverified_role = discord.utils.get(member.guild.roles, name="unverified")
+        if comrade_role:
+            await member.add_roles(comrade_role)
+            if unverified_role and unverified_role in member.roles:
+                await member.remove_roles(unverified_role)
+            await dm_channel.send("Yippee! You passed with {}/40. Welcome to our little corner of summer and sunshine!".format(score))
         else:
-            await dm_channel.send(f"You passed with {score}/40, but I couldn't find the 'comrade' role to give you! So sorry!")
+            await dm_channel.send("You passed the quiz, but I couldn't find the **comrade** role to assign you.")
     else:
         remaining = get_remaining_attempts(member.id)
         await dm_channel.send(
