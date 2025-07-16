@@ -1,110 +1,142 @@
 import discord
 import random
-from quiz import load_quiz, shuffle_options
-from utils import load_welcome_messages, can_attempt, record_attempt
+import asyncio
+from utils import (
+    can_attempt_quiz,
+    record_attempt,
+    is_user_verified,
+    get_remaining_attempts,
+    get_role_names
+)
+from quiz import get_questions, shuffle_options
 
-QUIZ = load_quiz()
-WELCOME_MESSAGES = load_welcome_messages()
-ALLOWED_CHANNELS = {"start-here-for-verification", "polls-and-tests", "unverified"}
+# Concurrency protection
+active_quiz_users = set()
+MAX_CONCURRENT_QUIZZES = 3
 
-async def handle_verification(ctx, bot, GUILD_ID, WELCOME_CHANNEL_NAME, ANSWER_LOG_CATEGORY, ANSWER_LOG_CHANNEL):
-    if ctx.channel.name not in ALLOWED_CHANNELS:
-        await ctx.reply(
-            f"{ctx.author.mention} You can only use this command in the designated verification channels (#polls-and-tests & #start-here-for-verification)!",
-            mention_author=False
-        )
-        return
+questions = get_questions()
 
-    if not can_attempt(ctx.author.id):
-        await ctx.reply(
-            f"{ctx.author.mention} You've reached the max number of quiz attempts today. Please try again tomorrow!",
-            mention_author=False
-        )
-        return
+async def handle_verification(ctx, bot, guild_id, welcome_channel_name, answer_log_category, answer_log_channel):
+    member = ctx.author
+    roles = get_role_names(member)
 
     try:
         await ctx.message.delete()
-    except discord.Forbidden:
-        pass  # If bot can't delete, just skip
+    except discord.errors.NotFound:
+        print(f"[INFO] Tried to delete a message that no longer exists (ID: {ctx.message.id}).")
+    except discord.errors.Forbidden:
+        print(f"[WARNING] Missing permissions to delete message in #{ctx.channel.name}.")
+
+    if "mod" in roles:
+        pass
+    elif "unverified" in roles and "comrade" not in roles:
+        pass
+    elif "comrade" in roles and "mod" not in roles:
+        await ctx.send("You are already verified and cannot take the quiz again.")
+        return
+    else:
+        await ctx.send("You are not permitted to take the verification quiz.")
+        return
+
+    if not can_attempt_quiz(member.id):
+        await ctx.send("You have reached the maximum number of quiz attempts (6).")
+        return
+
+    if member.id in active_quiz_users:
+        await ctx.send("You're already in a quiz session.")
+        return
+
+    if len(active_quiz_users) >= MAX_CONCURRENT_QUIZZES:
+        await ctx.send("Too many users are currently taking the quiz. Please wait a moment and try again.")
+        return
+
+    active_quiz_users.add(member.id)
 
     try:
-        await ctx.author.send("Hello there, my cutesy comrade! You're about to begin a short quiz for a vibe check! You'll need 30/40 to pass. Answer with A, B, C, or D. You’ve got this - and we're rooting for you!")
-    except discord.Forbidden:
-        await ctx.reply(
-            f"{ctx.author.mention}, please enable DMs so I can send you the quiz.",
-            mention_author=False
+        dm_channel = await member.create_dm()
+        await dm_channel.send(
+            "Hello there, my cutesy comrade! You're about to begin a short quiz for a vibe check! "
+            "You'll need 30/40 to pass. Answer with A, B, C, or D. You’ve got this - and we're rooting for you!"
         )
+        print(f"[INFO] Sent quiz intro DM to {member.name}#{member.discriminator} ({member.id})")
+    except discord.Forbidden:
+        active_quiz_users.discard(member.id)
+        await ctx.send("I couldn't DM you. Please enable DMs and try again.")
         return
 
     score = 0
-    answers = []
-    questions = [shuffle_options(q) for q in random.sample(QUIZ, len(QUIZ))]
+    user_answers = []
 
-    def check(m):
-        return m.author == ctx.author and isinstance(m.channel, discord.DMChannel)
+    for idx, q in enumerate(questions, 1):
+        q = shuffle_options(q)
+        options = q["options"]
+        letters = list(options.keys())
 
-    for idx, q in enumerate(questions, start=1):
-        text = f"\n**{q['question']}**\n"
-        for letter, (desc, _) in q["options"].items():
-            text += f"{letter}. {desc}\n"
-        try:
-            await ctx.author.send(text)
-        except discord.Forbidden:
-            return
+        formatted_options = "\n".join(f"{letter}. {options[letter][0]}" for letter in letters)
+        question_text = f"**{q['question']}**\n{formatted_options}"
+        await asyncio.sleep(0.5)
 
         try:
-            msg = await bot.wait_for("message", timeout=240.0, check=check)
-            choice = msg.content.upper().strip()
+            await dm_channel.send(question_text)
+        except discord.HTTPException as e:
+            if e.status == 429:
+                print("[RATE LIMITED] Message not sent due to Discord rate limit.")
+            raise
 
-            correct_letter = max(q["options"], key=lambda k: q["options"][k][1])
-            correct_text = f"{correct_letter} ({q['options'][correct_letter][0]})"
+        def check(m):
+            return m.author == member and m.channel == dm_channel
 
-            if choice in q["options"]:
-                points = q["options"][choice][1]
-                score += points
-                if choice == correct_letter:
-                    answers.append(f"{idx}. {q['question']} — {choice} ✓")
-                else:
-                    answers.append(f"{idx}. {q['question']} — {choice} ✗ — correct: {correct_text}")
-            else:
-                answers.append(f"{idx}. {q['question']} — Invalid ✗ — correct: {correct_text}")
-        except Exception:
-            await ctx.author.send("Oh no! Time's up! Try again later when you're ready, ok?")
+        try:
+            msg = await bot.wait_for("message", check=check, timeout=120)
+        except discord.HTTPException as e:
+            if isinstance(e, discord.errors.HTTPException) and e.status == 429:
+                print(f"[RATE LIMIT] Discord 429 error: {e}")
+            active_quiz_users.discard(member.id)
+            return
+        except asyncio.TimeoutError:
+            await dm_channel.send("Oh no! Time's up! Try again later when you're ready, ok?")
+            active_quiz_users.discard(member.id)
             return
 
-    record_attempt(ctx.author.id)
-    summary = "\n".join(answers)
-    total_summary = f"User: {ctx.author} ({ctx.author.id})\nAnswers:\n{summary}\nScore: {score}/40"
+        answer_letter = msg.content.strip().upper()
 
-    guild = bot.get_guild(GUILD_ID)
-    member = await guild.fetch_member(ctx.author.id)
-    comrade_role = discord.utils.get(guild.roles, name="comrade")
-    unverified_role = discord.utils.get(guild.roles, name="unverified")
-    welcome_channel = discord.utils.get(guild.text_channels, name=WELCOME_CHANNEL_NAME)
+        if answer_letter in letters:
+            selected = options[answer_letter]
+            earned = selected[1]
+            score += earned
+            user_answers.append((idx, q["question"], selected[0], earned))
+        else:
+            await dm_channel.send("Oopsies! That wasn’t one of the options. Let's skip this one for now!")
+            user_answers.append((idx, q["question"], msg.content.strip(), 0))
 
-    log_channel = None
-    category = discord.utils.get(guild.categories, name=ANSWER_LOG_CATEGORY)
-    if category:
-        log_channel = discord.utils.get(category.channels, name=ANSWER_LOG_CHANNEL)
-    if log_channel:
-        await log_channel.send(total_summary)
-
-    has_comrade = comrade_role in member.roles if comrade_role else False
+    record_attempt(member.id)
 
     if score >= 30:
-        await ctx.author.send(f"Yippee! You passed with {score}/40. Welcome to our little corner of summer and sunshine!")
-        if not has_comrade and comrade_role:
-            await member.add_roles(comrade_role)
-            if unverified_role and unverified_role in member.roles:
-                await member.remove_roles(unverified_role)
-            if welcome_channel:
-                await welcome_channel.send(f"{random.choice(WELCOME_MESSAGES)} {member.mention}")
+        role = discord.utils.get(member.guild.roles, name="comrade")
+        if role:
+            await member.add_roles(role)
+            await dm_channel.send(f"Yippee! You passed with {score}/40. Welcome to our little corner of summer and sunshine!")
+        else:
+            await dm_channel.send(f"You passed with {score}/40, but I couldn't find the 'comrade' role to give you! So sorry!")
     else:
-        await ctx.author.send(f"Uh oh, sorry but you scored {score}/40. Sadly, that's not quite enough to align with our ideological positions. But don’t worry — you can try again! Second time's the charm! Or third? Maybe fourth....?")
+        remaining = get_remaining_attempts(member.id)
+        await dm_channel.send(
+            f"Uh oh, sorry but you scored {score}/40. Sadly, that's not quite enough to align with our ideological positions. "
+            f"But don’t worry — you can try again! Second time's the charm! Or third? Maybe fourth....?\n"
+            f"You have {remaining} attempt(s) left!"
+        )
 
-    if has_comrade or score >= 30:
+    await asyncio.sleep(3.0)
+    log_channel = discord.utils.get(ctx.guild.text_channels, name="user-answers")
+    if log_channel:
+        summary_lines = [f"User: {member.name}#{member.discriminator}\n", "Answers:"]
+        for idx, question, answer, points in user_answers:
+            summary_lines.append(f"Q{idx}: {question} – \"{answer}\" : +{points}")
+        summary_lines.append(f"\nTotal Score: {score}/40")
+
         try:
-            intro = "📊 You did it! I'd give you a high five, but I'm just a bot lol! Anyway, here's your quiz breakdown:" if score >= 30 else "📊 Thanks for giving it a shot! Since you're already verified, here's your quiz breakdown:"
-            await ctx.author.send(f"{intro}\n\n{summary}")
-        except discord.Forbidden:
-            print(f"Could not send breakdown DM to {ctx.author.name}")
+            await log_channel.send("\n".join(summary_lines))
+        except discord.HTTPException as e:
+            print(f"[ERROR] Failed to send quiz summary: {e}")
+
+    active_quiz_users.discard(member.id)

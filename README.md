@@ -1,41 +1,62 @@
 # Discord Verification Bot
 
-This is a modular Python-based Discord bot built to automate user verification through a lightweight quiz system. It ensures that new members meet a baseline level of understanding or alignment with community values before being granted access to the rest of the server.
+This is a modular Python-based Discord bot designed to verify new users through a short, friendly DM-based quiz. Instead of testing for objective "correctness," the quiz gauges a user's ideological alignment and vibe fit with your community, using a weighted answer system. It’s playful, thoughtful, and built to scale safely.
 
-## Features
+## ✨ Features
 
 - **Private DM-based quiz delivery**  
-  When users type `!verifyme` in a designated channel, the bot initiates a private 8-question multiple-choice quiz.
+  Users type `!verifyme` in a designated channel, triggering a private 8-question multiple-choice quiz via DM.
 
-- **Randomized questions and answers**  
-  Both the order of questions and the order of their answer choices are shuffled each time, ensuring each attempt is unique.
+- **Ideological scoring, not correctness**  
+  Each question offers four plausible answers with different point values. All are technically valid, but some align more with the community's worldview. Users need **30 out of 40 points** to pass.
 
-- **Automated scoring with explanation**  
-  Responses are scored in real time, with incorrect answers followed by a message showing the correct response and question. Passing score is 30 out of 40.
+- **Randomized questions and shuffled answers**  
+  Both the question order and the answer choices are randomized each time, making every session unique and preventing gaming.
 
-- **Attempt tracking and retry limit**  
-  Users are limited to four attempts per 24 hours. Any additional attempts are gracefully denied with a friendly message.
+- **Lenient answer input**  
+  Users can respond with `A`, `B`, `C`, or `D` (case-insensitive). Invalid inputs are gracefully skipped with no crashes.
+
+- **Attempts capped per user**  
+  Users may take the quiz up to **6 times per day**, tracked by user ID and date. Attempts are stored in a local `attempts.json` file.
 
 - **Channel-restricted activation**  
-  The quiz can only be launched from specific channels (e.g., `start-here-for-verification` or `polls-and-tests`) to maintain order and prevent misuse.
+  The quiz can only be launched from a designated channel (e.g., `start-here-for-verification`) to maintain order and avoid abuse.
 
-- **Role assignment on success**  
-  Successful users are automatically assigned a pre-defined role (e.g., `comrade`) and have the `unverified` role removed.
+- **Role-based access control**  
+  - Users with `mod` role: always allowed  
+  - Users with `unverified` role and not `comrade`: allowed  
+  - Users with `comrade` but not `mod`: denied  
+  - All others: denied  
 
-- **Personalized welcome messages**  
-  Upon passing, users are welcomed in a public `#welcome` channel using one of several randomly selected messages stored in a JSON file.
+- **Automated scoring with cozy feedback**  
+  After answering all questions, users get a personalized, encouraging summary of their score and whether they passed or not.
 
-- **Answer logging for moderators**  
-  All quiz answers, scores, and pass/fail status are posted to a private logging channel (`#user-answers`) nested under a category named `admin & rules`.
+- **Friendly timeout handling**  
+  If the user takes more than 2 minutes to answer a question, the bot gently cancels the quiz and invites them to try again later.
 
-- **Friendly UX with timeout handling**  
-  If a user does not respond within the time limit, the bot exits the quiz session politely and encourages them to try again later.
+- **Public result logging**  
+  After each quiz, a summary is posted to the `#user-answers` channel for transparency. It includes all user responses, earned points, and score.
 
-## Hosting & Uptime
+- **Warm and playful UX**  
+  Messages sent to users use cheerful, gender-inclusive, encouraging language to make the verification experience delightful.
 
-The bot is deployed as an **active Web Service on [Render](https://render.com)** and kept alive using regular pings from [Uptime Robot](https://uptimerobot.com). A small Flask server is used to expose a status endpoint so Render does not suspend the instance due to inactivity.
+## 🛡️ Rate Limiting Protections
 
-## Setup
+To avoid Discord rate-limit bans and ensure stability:
+
+- Only **3 users** can take the quiz concurrently
+- 0.5 second delay added before sending each question
+- Total messages are paced and spaced carefully
+- Post-quiz logs are delayed by a few seconds before sending
+- Users cannot trigger multiple quizzes simultaneously
+- The `!verifyme` command has a short cooldown lock (2s between invocations)
+- Graceful error handling for 429 errors and DM issues
+
+## 🚀 Hosting & Uptime
+
+The bot is deployed as a **Web Service on [Render](https://render.com)** and kept alive using regular pings from [Uptime Robot](https://uptimerobot.com) every 5 minutes. A lightweight Flask server handles these keep-alive pings.
+
+## 🛠️ Setup
 
 ### 1. Clone the repository
 
@@ -50,54 +71,57 @@ cd discord-verification-bot
 pip install -r requirements.txt
 ```
 
-### 3. Environment variables
+### 3. Set up your environment
 
-Set the following environment variable (either in a `.env` file or your hosting dashboard):
+Create a `.env` file or configure Render environment variables:
 
 ```
 DISCORD_TOKEN=your-bot-token-here
+GUILD_ID=your-discord-guild-id
 ```
 
 ### 4. Deploy to Render
 
 - Create a **Web Service** on Render
 - Use `python main.py` as your start command
-- Set `DISCORD_TOKEN` in your Render environment variables
-- Render will provide a public URL for your Flask endpoint
+- Add `DISCORD_TOKEN` and `GUILD_ID` to environment variables
+- Render will generate a public URL for your Flask uptime endpoint
 
 ### 5. Set up Uptime Robot
 
 - Go to [https://uptimerobot.com](https://uptimerobot.com)
 - Create a new monitor (HTTP/S type)
-- Enter your Render URL (e.g., `https://your-bot.onrender.com`)
-- Set the interval to 5 minutes
+- Point it to your Render URL (e.g., `https://your-bot.onrender.com`)
+- Set the interval to **every 5 minutes**
 
-## Server Configuration
+## 🔧 Server Configuration
 
-Make sure your server includes the following:
+Your server must include:
 
-- A role named `comrade` (or your preferred post-verification role)
+- A role named `comrade` (post-verification role)
 - A role named `unverified`
-- A text channel named `welcome`
-- A text channel named `user-answers` under a category called `admin & rules`
-- Verification command allowed **only** in `start-here-for-verification` or `polls-and-tests`
+- A role named `mod` (admin/verification override)
+- A text channel named `start-here-for-verification`
+- A text channel named `user-answers` (under any category)
 
-These names are matched exactly, so check spelling and capitalization.
+**Important:** Names are case-sensitive and must match exactly.
 
-## File Structure
+## 📁 File Structure
 
 ```
 discord-verification-bot/
-├── main.py             # Starts the bot and handles startup
-├── handlers.py         # Quiz and role management logic
-├── quiz.py             # Loads and shuffles quiz data
-├── utils.py            # Helper functions for retry tracking and messages
-├── quiz.json           # Full quiz content
-├── messages.json       # Welcome messages
-├── requirements.txt    # Python dependencies
+├── main.py             # Command routing and role logic
+├── handlers.py         # Quiz session flow and score logic
+├── quiz.py             # Loads quiz data and shuffles options
+├── utils.py            # Attempt tracking and role parsing
+├── quiz.json           # All quiz content (questions and answer weights)
+├── messages.json       # Optional welcome messages (future use)
+├── keep_alive.py       # Flask server for uptime
+├── attempts.json       # Per-user daily attempt tracking
+├── requirements.txt    # Dependency list
 └── README.md           # This file
 ```
 
-## License
+## 🪪 License
 
-This project is licensed under the MIT License. See `LICENSE` for details.
+This project is licensed under the MIT License. See `LICENSE` for full details.
